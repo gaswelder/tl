@@ -19,17 +19,27 @@ function parseLine($line)
 	};
 
 	$info['id'] = $number();
-	$info['percent'] = $number();
-	$buf->expect('%');
+	$info['done'] = $number() . $buf->expect('%');
 
 	$buf->read_set(' ');
 	$info['have'] = $buf->read_set('0123456789.') . $buf->expect(' ') . $buf->until(' ');
 
-	$info['eta'] = $word();
+	$buf->read_set(' ');
+	if (is_numeric($buf->peek())) {
+		$info['eta'] = $number() . ' ' . $word();
+	} else {
+		$info['eta'] = $word();
+	}
 	$info['up'] = $number();
 	$info['down'] = $number();
 	$info['ratio'] = $number();
-	$info['status'] = $word();
+
+	$buf->read_set(' ');
+	if ($buf->skip_literal("Up & Down")) {
+		$info['status'] = "Up & Down";
+	} else {
+		$info['status'] = $word();
+	}
 
 	$buf->read_set(' ');
 	$info['name'] = $buf->rest();
@@ -40,10 +50,10 @@ class torc
 {
 	private function exec($cmd)
 	{
-		// exec("ssh pi bash --login torc $cmd", $out, $r);
-		exec("torc $cmd", $out, $r);
+		// exec("ssh pi transmission-remote -n transmission:transmission $cmd", $out, $r);
+		exec("transmission-remote -n transmission:transmission $cmd", $out, $r);
 		if ($r != 0) {
-			throw new Exception("torc exec failed");
+			throw new Exception("exec failed");
 		}
 		return $out;
 	}
