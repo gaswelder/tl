@@ -6,6 +6,7 @@ function parseLine($line)
 {
 	// ID     Done       Have  ETA           Up    Down  Ratio  Status       Name
 	// 1      100%   10.48 MB  Done         0.0     0.0    2.9  Idle         John Fowles
+	// 41     n/a        None  Unknown      0.0     0.0   None  Idle          Books
 	$buf = new buf($line);
 
 	$number = function () use ($buf) {
@@ -19,11 +20,24 @@ function parseLine($line)
 	};
 
 	$info['id'] = $number();
-	$info['done'] = $number() . $buf->expect('%');
 
+	// "Done": 20% | n/a
 	$buf->read_set(' ');
-	$info['have'] = $buf->read_set('0123456789.') . $buf->expect(' ') . $buf->until(' ');
+	if ($buf->skip_literal('n/a')) {
+		$info['done'] = 'n/a';
+	} else {
+		$info['done'] = $number() . $buf->expect('%');
+	}
 
+	// "Have": 10.48 MB | None
+	$buf->read_set(' ');
+	if ($buf->skip_literal('None')) {
+		$info['have'] = 'None';
+	} else {
+		$info['have'] = $buf->read_set('0123456789.') . $buf->expect(' ') . $buf->until(' ');
+	}
+
+	// "ETA": 10 m | Done | Unknown
 	$buf->read_set(' ');
 	if (is_numeric($buf->peek())) {
 		$info['eta'] = $number() . ' ' . $word();
