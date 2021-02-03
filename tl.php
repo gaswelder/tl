@@ -14,6 +14,7 @@ function usage($prog)
 {
 	$l = [
 		"	list torrents",
+		" add <url> add a torrent",
 		"-h <id>...	hide torrents",
 		"-s <id>...	unhide torrents",
 		"-a	list all torrents",
@@ -30,7 +31,25 @@ function usage($prog)
 function main($args)
 {
 	$prog = array_shift($args);
+	if (!empty($args) && $args[0] === 'add') {
+		array_shift($args);
+		return command_add($args);
+	}
+	return command_list($prog);
+}
 
+function command_add($args)
+{
+	if (count($args) != 1) {
+		fwrite(STDERR, "Usage: add <url>");
+		return 1;
+	}
+	$torc = new torc();
+	$torc->add($args[0]);
+}
+
+function command_list($prog)
+{
 	$visible = true;
 	$hidden = false;
 	$order = false;

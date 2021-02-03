@@ -62,14 +62,23 @@ function parseLine($line)
 
 class torc
 {
-	private function exec($cmd)
+	private function exec($cmd, ...$args)
 	{
-		// exec("ssh pi transmission-remote -n transmission:transmission $cmd", $out, $r);
-		exec("transmission-remote -n transmission:transmission $cmd", $out, $r);
+		$cmdline = $cmd;
+		foreach ($args as $arg) {
+			$cmdline .= ' ' . escapeshellarg($arg);
+		}
+		// exec("ssh pi transmission-remote -n transmission:transmission $cmdline", $out, $r);
+		exec("transmission-remote -n transmission:transmission $cmdline", $out, $r);
 		if ($r != 0) {
 			throw new Exception("exec failed");
 		}
 		return $out;
+	}
+
+	function add($url)
+	{
+		$this->exec("-a", $url);
 	}
 
 	function ls()
