@@ -35,7 +35,7 @@ function main($args)
 		array_shift($args);
 		return command_add($args);
 	}
-	return command_list($prog);
+	return command_list($prog, $args);
 }
 
 function command_add($args)
@@ -48,7 +48,7 @@ function command_add($args)
 	$torc->add($args[0]);
 }
 
-function command_list($prog)
+function command_list($prog, $args)
 {
 	$visible = true;
 	$hidden = false;
