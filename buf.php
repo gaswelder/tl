@@ -158,13 +158,13 @@ class buf
     {
         $n = strlen($s);
         if (!$this->literal_follows($s)) {
-            return false;
+            return '';
         }
         while ($n > 0) {
             $n--;
             $this->get();
         }
-        return true;
+        return $s;
     }
 
     function until($str)

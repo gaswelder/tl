@@ -7,6 +7,7 @@ function parseLine($line)
 	// ID     Done       Have  ETA           Up    Down  Ratio  Status       Name
 	// 1      100%   10.48 MB  Done         0.0     0.0    2.9  Idle         John Fowles
 	// 41     n/a        None  Unknown      0.0     0.0   None  Idle          Books
+	// 38*    n/a        None  Unknown      0.0     0.0   None  Stopped       name
 	$buf = new buf($line);
 
 	$number = function () use ($buf) {
@@ -19,7 +20,7 @@ function parseLine($line)
 		return $buf->read_set($buf::regex('/\w/'));
 	};
 
-	$info['id'] = $number();
+	$info['id'] = $number() . $buf->skip_literal('*');
 
 	// "Done": 20% | n/a
 	$buf->read_set(' ');
