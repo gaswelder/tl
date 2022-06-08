@@ -2,65 +2,6 @@
 
 require_once 'buf.php';
 
-function parseLine($line)
-{
-	// ID     Done       Have  ETA           Up    Down  Ratio  Status       Name
-	// 1      100%   10.48 MB  Done         0.0     0.0    2.9  Idle         John Fowles
-	// 41     n/a        None  Unknown      0.0     0.0   None  Idle          Books
-	// 38*    n/a        None  Unknown      0.0     0.0   None  Stopped       name
-	$buf = new buf($line);
-
-	$number = function () use ($buf) {
-		$buf->read_set(' ');
-		return $buf->read_set('0123456789.');
-	};
-
-	$word = function () use ($buf) {
-		$buf->read_set(' ');
-		return $buf->read_set($buf::regex('/\w/'));
-	};
-
-	$info['id'] = $number() . $buf->skip_literal('*');
-
-	// "Done": 20% | n/a
-	$buf->read_set(' ');
-	if ($buf->skip_literal('n/a')) {
-		$info['done'] = 'n/a';
-	} else {
-		$info['done'] = $number() . $buf->expect('%');
-	}
-
-	// "Have": 10.48 MB | None
-	$buf->read_set(' ');
-	if ($buf->skip_literal('None')) {
-		$info['have'] = 'None';
-	} else {
-		$info['have'] = $buf->read_set('0123456789.') . $buf->expect(' ') . $buf->until(' ');
-	}
-
-	// "ETA": 10 m | Done | Unknown
-	$buf->read_set(' ');
-	if (is_numeric($buf->peek())) {
-		$info['eta'] = $number() . ' ' . $word();
-	} else {
-		$info['eta'] = $word();
-	}
-	$info['up'] = $number();
-	$info['down'] = $number();
-	$info['ratio'] = $number();
-
-	$buf->read_set(' ');
-	if ($buf->skip_literal("Up & Down")) {
-		$info['status'] = "Up & Down";
-	} else {
-		$info['status'] = $word();
-	}
-
-	$buf->read_set(' ');
-	$info['name'] = $buf->rest();
-	return $info;
-}
-
 class torc
 {
 	private function exec($cmd, ...$args)
@@ -146,10 +87,5 @@ class torc
 		}
 
 		return $paths;
-	}
-
-	function remove($id)
-	{
-		$this->exec("-t $id -r");
 	}
 }
