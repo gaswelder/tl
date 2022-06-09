@@ -2,6 +2,84 @@
 #import parsebuf
 #import strutil
 
+typedef {
+    FILE *out;
+    exec_t *child;
+} client_t;
+
+client_t tl_exec(char **args) {
+    char *argv[20] = {};
+    int i = 0;
+    argv[i++] = "/usr/bin/ssh";
+    argv[i++] = "pi";
+    argv[i++] = "transmission-remote";
+    argv[i++] = "-n";
+    argv[i++] = "transmission:transmission";
+    while (*args) {
+        argv[i++] = *args;
+        args++;
+    }
+    argv[i++] = NULL;
+
+    char **env = {NULL};
+    pipe_t pipe = exec_makepipe();
+    exec_t *child = exec("/usr/bin/ssh", argv, env, stdin, pipe.write, stderr);
+    fclose(pipe.write);
+    client_t r = {
+        .out = pipe.read,
+        .child = child
+    };
+    return r;
+}
+
+void tl_close(client_t c) {
+    int status = 0;
+    if (!exec_wait(c.child, &status)) {
+        fprintf(stderr, "wait failed: %s\n", strerror(errno));
+    }
+}
+
+void fpassthrough(FILE *from, *to) {
+    char buf[1000] = {};
+    while (fgets(buf, sizeof(buf), from)) {
+        fputs(buf, to);
+    }
+}
+
+pub void tl_add(char *url) {
+    char *args[] = {"-a", url, NULL};
+    client_t c = tl_exec(args);
+    fpassthrough(c.out, stdout);
+    tl_close(c);
+}
+
+pub void tl_rm(char *id) {
+    char *args[] = {"-r", id, NULL};
+    client_t c = tl_exec(args);
+    fpassthrough(c.out, stdout);
+    tl_close(c);
+}
+
+pub bool tl_getval(char *id, char *param, char *out, size_t n) {
+    char *args[] = {"-t", id, "-i", NULL};
+    client_t c = tl_exec(args);
+
+    char buf[1000] = {};
+    bool ok = false;
+    while (fgets(buf, sizeof(buf), c.out)) {
+        char *line = trim(buf);
+        puts(line);
+        if (strstr(line, param) == line) {
+            char *from = line + strlen(param) + strlen(": ");
+            strncpy(out, from, n);
+            ok = true;
+            break;
+        }
+    }
+    tl_close(c);
+    return ok;
+}
+
 pub typedef {
      char id[8];
      char done[8];
@@ -15,14 +93,8 @@ pub typedef {
 } torr_t;
 
 pub void torrents(torr_t **items, size_t *size) {
-    /*
-     * Call the torrents client
-     */
-    char *argv[] = {"/usr/bin/ssh", "pi", "transmission-remote", "-n", "transmission:transmission", "-l", NULL};
-    char **env = {NULL};
-    pipe_t pipe = exec_makepipe();
-    exec_t *child = exec("/usr/bin/ssh", argv, env, stdin, pipe.write, stderr);
-    fclose(pipe.write);
+    char *args[] = {"-l", NULL};
+    client_t client = tl_exec(args);
 
     /*
      * Read and parse the output
@@ -31,7 +103,7 @@ pub void torrents(torr_t **items, size_t *size) {
     size_t cap = 1;
     torr_t *list = malloc(cap * sizeof(torr_t));
     char buf[1000] = {};
-    while (fgets(buf, sizeof(buf), pipe.read)) {
+    while (fgets(buf, sizeof(buf), client.out)) {
         char *line = trim(buf);
         torr_t t = parseline(line);
         if (!strcmp(t.id, "ID") || !strcmp(t.id, "Sum:")) {
@@ -45,17 +117,8 @@ pub void torrents(torr_t **items, size_t *size) {
         len++;
     }
 
-    /*
-     * Close the client
-     */
-    int status = 0;
-    if (!exec_wait(child, &status)) {
-        fprintf(stderr, "wait failed: %s\n", strerror(errno));
-    }
+    tl_close(client);
 
-    /*
-     * Return the list
-     */
     *items = list;
     *size = len;
 }
